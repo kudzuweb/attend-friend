@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.invoke('relaunch-app'),
 });
 
+
 // screenshot function
 async function captureOnce(): Promise<string> {
     // returns a data URL of a JPEG

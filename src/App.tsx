@@ -18,7 +18,7 @@ function App() {
     }
     catch (e) {
       console.error(e);
-      setShowPermModal(true);
+      alert('screen recording permission is required on macOS.');
     }
     finally {
       setBusy(false);
