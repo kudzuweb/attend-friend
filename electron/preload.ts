@@ -1,11 +1,17 @@
-import { contextBridge, ipcRenderer, desktopCapturer } from "electron";
+import { contextBridge, ipcRenderer, desktopCapturer, DesktopCapturerSource } from "electron";
 
+
+// safe bridge to open screen recording settings and relaunch(if it fails due to permissions)
+contextBridge.exposeInMainWorld('api', {
+    openScreenRecordingSettings: () =>
+        ipcRenderer.invoke('relaunch-app'),
+});
 
 // screenshot function
 async function captureOnce(): Promise<string> {
     // returns a data URL of a JPEG
-    const sources = await desktopCapturer.getSources({ types: ['screen'] });
-    const source = sources[0];
+    const sources: DesktopCapturerSource[] = await desktopCapturer.getSources({ types: ['screen'] });
+    const source: DesktopCapturerSource = sources[0];
     // TODO: add a chooser for multiple displays
 
 
