@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, desktopCapturer } from "electron";
 
+
 // screenshot function
 async function captureOnce(): Promise<string> {
     // returns a data URL of a JPEG
@@ -7,10 +8,11 @@ async function captureOnce(): Promise<string> {
     const source = sources[0];
     // TODO: add a chooser for multiple displays
 
-    // mandatory ts-expect-error chromium-specific constraints
+
     const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
+            // @ts-expect-error: chromium-specific WebRTC constraints
             mandatory: {
                 chromeMediaSource: 'desktop',
                 chromeMediaSourceId: source.id,
@@ -49,13 +51,3 @@ contextBridge.exposeInMainWorld('api', {
     captureOnce,
     saveImage: (dataUrl: string) => ipcRenderer.invoke('save-image', { dataUrl })
 });
-
-// add window.api to Window type so TS doesn't freak out
-declare global {
-    interface Window {
-        api: {
-            captureOnce: () => Promise<string>;
-            saveImage: (dataUrl: string) => Promise<{ ok: boolean }>;
-        }
-    }
-}

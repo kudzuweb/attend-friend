@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import path from 'node:path';
 
 let win: BrowserWindow | null = null;
@@ -43,4 +43,6 @@ app.on('activate', () => {
 ipcMain.handle('save-image', async (_e, { dataUrl }: { dataUrl: string }) => {
     return { ok: true };
 })
+
+
 
