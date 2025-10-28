@@ -1,4 +1,9 @@
-const { contextBridge, ipcRenderer, desktopCapturer } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
+
+// check permissions status
+async function getScreenPermissionStatus() {
+    return ipcRenderer.invoke('screen-permission-status');
+}
 
 // get media sources
 async function listScreens() {
@@ -57,6 +62,7 @@ async function captureOnce() {
 console.log("running preload!!!")
 // expose safe APIs to the webpage(constrains node access)
 const api = Object.freeze({
+    getScreenPermissionStatus,
     captureOnce,
     saveImage: (dataUrl) =>
         ipcRenderer.invoke('save-image',

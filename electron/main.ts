@@ -1,4 +1,4 @@
-import { app, BrowserWindow, desktopCapturer, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, desktopCapturer, ipcMain, shell, systemPreferences } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -52,15 +52,10 @@ app.on('activate', () => {
 });
 
 // IPC handlers 
-// capture screenshots
-ipcMain.handle('desktopCapturer-get-sources', (_e, opts) => {
-    return desktopCapturer.getSources(opts);
-})
-
-// save screenshots(placeholder currently)
-ipcMain.handle('save-image', async (_e, { dataUrl }: { dataUrl: string }) => {
-    return { ok: true };
-})
+// check permissions status
+ipcMain.handle('screen-permission-status', () => {
+    return systemPreferences.getMediaAccessStatus('screen'); // string
+});
 
 // open screen recording settings for user to grant permissions
 ipcMain.handle('open-screen-recording-settings', async () => {
@@ -72,6 +67,19 @@ ipcMain.handle('open-screen-recording-settings', async () => {
     }
     return { ok: false, reason: 'unsupported_platform' };
 });
+
+// get media sources for screenshots
+ipcMain.handle('desktopCapturer-get-sources', (_e, opts) => {
+    let capturer = desktopCapturer.getSources(opts);
+    return capturer
+    console.log('desktopCapturer invoked:', capturer)
+})
+
+// save screenshots(placeholder currently)
+ipcMain.handle('save-image', async (_e, { dataUrl }: { dataUrl: string }) => {
+    return { ok: true };
+})
+
 // relaunch app
 ipcMain.handle('relaunch-app', () => {
     app.relaunch();
