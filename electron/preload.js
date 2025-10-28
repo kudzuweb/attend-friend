@@ -1,11 +1,22 @@
-import { contextBridge, ipcRenderer, desktopCapturer, DesktopCapturerSource } from "electron";
+const { contextBridge, ipcRenderer } = require('electron');
+
+// check permissions status
+async function getScreenPermissionStatus() {
+    return ipcRenderer.invoke('screen-permission-status');
+}
+
+// get media sources
+async function listScreens() {
+    return ipcRenderer.invoke('desktopCapturer-get-sources', { types: ['screen'] })
+}
 
 // screenshot function
-async function captureOnce(): Promise<string> {
+async function captureOnce() {
+    console.log("desktopCapturer", desktopCapturer)
     // returns a data URL of a JPEG
-    const sources: DesktopCapturerSource[] = await desktopCapturer.getSources({ types: ['screen'] });
-    const source: DesktopCapturerSource = sources[0];
-    // TODO: add a chooser for multiple displays
+    const sources = await listScreens();
+    const source = sources[0];
+    // TODO: add a picker for multiple displays
 
 
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -27,7 +38,7 @@ async function captureOnce(): Promise<string> {
     video.srcObject = stream;
 
     // wait for video frame to actually exist before trying to use it
-    await new Promise<void>(res => {
+    await new Promise(res => {
         video.onloadedmetadata = () => {
             video.play().then(() => res());
         };
@@ -37,7 +48,7 @@ async function captureOnce(): Promise<string> {
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d')
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
     // cleanup: turn off the capture feed after grabbing frame
@@ -48,15 +59,19 @@ async function captureOnce(): Promise<string> {
     return canvas.toDataURL('image/jpeg', 0.6)
 }
 
+console.log("running preload!!!")
 // expose safe APIs to the webpage(constrains node access)
-contextBridge.exposeInMainWorld('api', {
+const api = Object.freeze({
+    getScreenPermissionStatus,
     captureOnce,
-    saveImage: (dataUrl: string) =>
+    saveImage: (dataUrl) =>
         ipcRenderer.invoke('save-image',
             { dataUrl },
         ),
     openScreenRecordingSettings: () =>
         ipcRenderer.invoke('open-screen-recording-settings'),
     relaunchApp: () =>
-        ipcRenderer.invoke('relaunch-app')
-});
+        ipcRenderer.invoke('relaunch-app'),
+})
+
+contextBridge.exposeInMainWorld('api', api)
