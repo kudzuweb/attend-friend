@@ -40,7 +40,7 @@ function App() {
   // render react UI, conditionally render img if available
   return (
     <div style={{ padding: 24 }}>
-      <h1>electron screenshot demo</h1>
+      <h1>attend screenshot demo</h1>
 
       <button onClick={grab} disabled={busy}>
         {busy ? 'capturing...' : 'capture once'}

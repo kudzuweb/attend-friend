@@ -7,10 +7,11 @@ async function captureOnce(): Promise<string> {
     const source: DesktopCapturerSource = sources[0];
     // TODO: add a chooser for multiple displays
 
+
     const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
-            // @ts-expect-error chromium-specific constraints allowing more granular control
+            // @ts-expect-error: chromium-specific WebRTC constraints
             mandatory: {
                 chromeMediaSource: 'desktop',
                 chromeMediaSourceId: source.id,
