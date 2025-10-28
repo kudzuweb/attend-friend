@@ -11,6 +11,7 @@ function App() {
     try {
       setBusy(true);
       // capture one screen frame
+      console.log("api", window.api)
       const dataUrl = await window.api.captureOnce();
       setImg(dataUrl);
       // send frame back to main process via IPC(once storage is implemented)
