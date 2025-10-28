@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import path from 'node:path';
 
 let win: BrowserWindow | null = null;
@@ -43,4 +43,22 @@ app.on('activate', () => {
 ipcMain.handle('save-image', async (_e, { dataUrl }: { dataUrl: string }) => {
     return { ok: true };
 })
+
+// IPC handler to open screen recording settings for user to grant permissions
+ipcMain.handle('open-screen-recording-settings', async () => {
+    if (process.platform === 'darwin') {
+        await shell.openExternal(
+            'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
+        );
+        return { ok: true };
+    }
+    return { ok: false, reason: 'unsupported_platform' };
+});
+
+ipcMain.handle('relaunch-app', () => {
+    app.relaunch();
+    app.exit(0);
+});
+
+
 
