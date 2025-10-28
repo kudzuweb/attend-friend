@@ -1,33 +1,24 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 function App() {
   // state to hold screenshot and busy status
   const [img, setImg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showPermModal, setShowPermModal] = useState(false);
-  const [perm, setPerm] = useState<'not-determined' | 'granted' | 'denied' | 'restricted' | 'unknown'>('unknown');
-
-  useEffect(() => {
-    window.api.getScreenPermissionStatus().then(setPerm).catch(() => setPerm('unknown'));
-  }, []);
 
   // capture handler
   async function grab() {
-    if (busy) return;
     try {
       setBusy(true);
       // capture one screen frame
       console.log("api", window.api)
-      const latestPerm = await window.api.getScreenPermissionStatus();
-      setPerm(latestPerm);
-      if (perm !== 'granted') throw new Error('screen-permission-not-granted');
       const dataUrl = await window.api.captureOnce();
       setImg(dataUrl);
       // send frame back to main process via IPC(once storage is implemented)
       // await window.api.saveImage(dataUrl);
     }
     catch (e) {
-      throw e
+      console.error(e);
       setShowPermModal(true);
     }
     finally {

@@ -1,10 +1,7 @@
 declare global {
-    type MediaAccessStatus = 'not-determined' | 'granted' | 'denied' | 'restricted' | 'unknown';
-
     // add window.api to Window type so TS doesn't freak out
     interface Window {
         api: {
-            getScreenPermissionStatus: () => Promise<MediaAccessStatus>;
             openScreenRecordingSettings: () => Promise<{ ok: boolean; reason?: string }>;
             relaunchApp: () => Promise<void>;
             captureOnce: () => Promise<string>;
