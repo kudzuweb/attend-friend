@@ -18,7 +18,7 @@ function App() {
     }
     catch (e) {
       console.error(e);
-      alert('screen recording permission is required on macOS.');
+      setShowPermModal(true);
     }
     finally {
       setBusy(false);
@@ -27,7 +27,10 @@ function App() {
 
   // handler functions to open Settings and relaunch
   async function openSettings() {
-    await window.api.openScreenRecordingSettings();
+    const res = await window.api.openScreenRecordingSettings();
+    if (!res.ok) {
+      console.log("failed to open settings")
+    }
   }
 
   async function relaunch() {

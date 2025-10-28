@@ -1,13 +1,5 @@
 import { contextBridge, ipcRenderer, desktopCapturer, DesktopCapturerSource } from "electron";
 
-
-// safe bridge to open screen recording settings and relaunch(if it fails due to permissions)
-contextBridge.exposeInMainWorld('api', {
-    openScreenRecordingSettings: () =>
-        ipcRenderer.invoke('relaunch-app'),
-});
-
-
 // screenshot function
 async function captureOnce(): Promise<string> {
     // returns a data URL of a JPEG
@@ -33,10 +25,13 @@ async function captureOnce(): Promise<string> {
     // create a hidden <video> to pipe video to
     const video = document.createElement('video');
     video.srcObject = stream;
-    await video.play();
 
-    // time delay
-    await new Promise(r => setTimeout(r, 50));
+    // wait for video frame to actually exist before trying to use it
+    await new Promise<void>(res => {
+        video.onloadedmetadata = () => {
+            video.play().then(() => res());
+        };
+    });
 
     //create canvas, match size to video frame size, copy the frame onto it
     const canvas = document.createElement('canvas');
@@ -53,8 +48,15 @@ async function captureOnce(): Promise<string> {
     return canvas.toDataURL('image/jpeg', 0.6)
 }
 
-// expose safe API to the webpage(constrains node access)
+// expose safe APIs to the webpage(constrains node access)
 contextBridge.exposeInMainWorld('api', {
     captureOnce,
-    saveImage: (dataUrl: string) => ipcRenderer.invoke('save-image', { dataUrl })
+    saveImage: (dataUrl: string) =>
+        ipcRenderer.invoke('save-image',
+            { dataUrl },
+        ),
+    openScreenRecordingSettings: () =>
+        ipcRenderer.invoke('open-screen-recording-settings'),
+    relaunchApp: () =>
+        ipcRenderer.invoke('relaunch-app')
 });
