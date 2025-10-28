@@ -27,7 +27,10 @@ function App() {
 
   // handler functions to open Settings and relaunch
   async function openSettings() {
-    await window.api.openScreenRecordingSettings();
+    const res = await window.api.openScreenRecordingSettings();
+    if (!res.ok) {
+      console.log("failed to open settings")
+    }
   }
 
   async function relaunch() {

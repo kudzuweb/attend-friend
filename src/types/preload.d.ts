@@ -1,5 +1,5 @@
-// add window.api to Window type so TS doesn't freak out
 declare global {
+    // add window.api to Window type so TS doesn't freak out
     interface Window {
         api: {
             openScreenRecordingSettings: () => Promise<{ ok: boolean; reason?: string }>;
@@ -8,11 +8,7 @@ declare global {
             saveImage: (dataUrl: string) => Promise<{ ok: boolean }>;
         }
     }
-}
-
-
-// media track constraints for chromium to allow more granular config
-declare global {
+    // media track constraints for chromium to allow more granular config
     interface MediaTrackConstraintSet {
         // Chromium-only bits used by Electron desktop capture
         chromeMediaSource?: 'desktop' | 'screen' | 'window' | 'tab';
@@ -26,4 +22,5 @@ declare global {
         };
     }
 }
+
 export { };
