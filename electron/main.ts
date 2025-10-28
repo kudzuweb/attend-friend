@@ -5,9 +5,8 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Example: build an absolute path to your built preload
+// absolute path to your built preload
 const preloadPath = path.resolve(__dirname, '../electron/preload.js');
-
 
 let win: BrowserWindow | null = null;
 
@@ -35,55 +34,54 @@ async function createWindow() {
     }
 }
 
+// function to register IPC handlers 
+function registerIPC() {
+    // check permissions status
+    ipcMain.handle('get-screen-permission-status', () => {
+        return systemPreferences.getMediaAccessStatus('screen'); // string
+    });
+    // open screen recording settings for user to grant permissions
+    ipcMain.handle('open-screen-recording-settings', async () => {
+        if (process.platform === 'darwin') {
+            await shell.openExternal(
+                'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
+            );
+            return { ok: true };
+        }
+        return { ok: false, reason: 'unsupported_platform' };
+    });
+    // get media sources for screenshots
+    ipcMain.handle('desktopCapturer-get-sources', (_e, opts) => {
+        let capturer = desktopCapturer.getSources(opts);
+        return capturer
+        console.log('desktopCapturer invoked:', capturer)
+    })
+    // save screenshots(placeholder currently)
+    ipcMain.handle('save-image', async (_e, { dataUrl }: { dataUrl: string }) => {
+        return { ok: true };
+    })
+    // relaunch app
+    ipcMain.handle('relaunch-app', () => {
+        app.relaunch();
+        app.exit(0);
+    });
+}
 
 console.log("running main.ts at", new Date())
 // app life cycle events
 const whenReadyPromise = app.whenReady()
-whenReadyPromise.then(createWindow);
+whenReadyPromise.then(() => {
+    registerIPC();
+    createWindow()
+});
 app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-        app.quit();
-    }
+    console.log("windows are closed now")
+    app.quit();
 });
 app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
         createWindow();
     }
-});
-
-// IPC handlers 
-// check permissions status
-ipcMain.handle('screen-permission-status', () => {
-    return systemPreferences.getMediaAccessStatus('screen'); // string
-});
-
-// open screen recording settings for user to grant permissions
-ipcMain.handle('open-screen-recording-settings', async () => {
-    if (process.platform === 'darwin') {
-        await shell.openExternal(
-            'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
-        );
-        return { ok: true };
-    }
-    return { ok: false, reason: 'unsupported_platform' };
-});
-
-// get media sources for screenshots
-ipcMain.handle('desktopCapturer-get-sources', (_e, opts) => {
-    let capturer = desktopCapturer.getSources(opts);
-    return capturer
-    console.log('desktopCapturer invoked:', capturer)
-})
-
-// save screenshots(placeholder currently)
-ipcMain.handle('save-image', async (_e, { dataUrl }: { dataUrl: string }) => {
-    return { ok: true };
-})
-
-// relaunch app
-ipcMain.handle('relaunch-app', () => {
-    app.relaunch();
-    app.exit(0);
 });
 
 console.log("attempting to load localhost at", new Date())

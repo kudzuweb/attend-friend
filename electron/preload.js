@@ -1,10 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-// check permissions status
-async function getScreenPermissionStatus() {
-    return ipcRenderer.invoke('screen-permission-status');
-}
-
 // get media sources
 async function listScreens() {
     return ipcRenderer.invoke('desktopCapturer-get-sources', { types: ['screen'] })
@@ -12,7 +7,6 @@ async function listScreens() {
 
 // screenshot function
 async function captureOnce() {
-    console.log("desktopCapturer", desktopCapturer)
     // returns a data URL of a JPEG
     const sources = await listScreens();
     const source = sources[0];
@@ -61,7 +55,8 @@ async function captureOnce() {
 console.log("running preload!!!")
 // expose safe APIs to the webpage(constrains node access)
 const api = Object.freeze({
-    getScreenPermissionStatus,
+    getScreenPermissionStatus: () =>
+        ipcRenderer.invoke('get-screen-permission-status'),
     captureOnce,
     saveImage: (dataUrl) =>
         ipcRenderer.invoke('save-image',
