@@ -4,7 +4,7 @@ declare global {
         api: {
             openScreenRecordingSettings: () => Promise<{ ok: boolean; reason?: string }>;
             relaunchApp: () => Promise<void>;
-            captureOnce: () => Promise<string>;
+            captureFrames: () => Promise<string>;
             saveImage: (dataUrl: string) => Promise<{ ok: boolean }>;
         }
     }

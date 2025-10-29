@@ -82,7 +82,7 @@ ipcMain.handle('save-image', async (_e, { dataUrl }: { dataUrl: string }) => {
 
 // relaunch app
 ipcMain.handle('relaunch-app', () => {
-    app.relaunch();
+    app.relaunch({ args: process.argv.slice(1).concat(['--relaunch']) });
     app.exit(0);
 });
 
