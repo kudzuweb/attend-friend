@@ -11,8 +11,7 @@ async function listScreens() {
 }
 
 // screenshot function
-async function captureOnce() {
-    console.log("desktopCapturer", desktopCapturer)
+async function captureFrames() {
     // returns a data URL of a JPEG
     const sources = await listScreens();
     const source = sources[0];
@@ -51,8 +50,11 @@ async function captureOnce() {
     const ctx = canvas.getContext('2d')
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
-    // cleanup: turn off the capture feed after grabbing frame
+    // cleanup: turn off the capture feed after grabbing frame and reset source
     video.pause();
+    // @ts-expect-error: srcObject assignment
+    video.srcObject = null;
+    video.remove();
     stream.getTracks().forEach(t => t.stop());
 
     // export JPEG, quality setting
@@ -63,7 +65,7 @@ console.log("running preload!!!")
 // expose safe APIs to the webpage(constrains node access)
 const api = Object.freeze({
     getScreenPermissionStatus,
-    captureOnce,
+    captureFrames: captureFrames,
     saveImage: (dataUrl) =>
         ipcRenderer.invoke('save-image',
             { dataUrl },

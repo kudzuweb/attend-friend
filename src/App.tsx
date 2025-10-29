@@ -1,18 +1,22 @@
-import { useState } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 
 function App() {
   // state to hold screenshot and busy status
   const [img, setImg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showPermModal, setShowPermModal] = useState(false);
+  const timerRef = useRef<number | null>(null);
+  const capturingRef = useRef(false);
 
   // capture handler
-  async function grab() {
+  const grab = useCallback(async () => {
+    if (capturingRef.current) return;
+    capturingRef.current = true;
+
+    setBusy(true);
     try {
-      setBusy(true);
       // capture one screen frame
-      console.log("api", window.api)
-      const dataUrl = await window.api.captureOnce();
+      const dataUrl = await window.api.captureFrames();
       setImg(dataUrl);
       // send frame back to main process via IPC(once storage is implemented)
       // await window.api.saveImage(dataUrl);
@@ -23,8 +27,24 @@ function App() {
     }
     finally {
       setBusy(false);
+      capturingRef.current = false;
     }
-  }
+  }, [busy])
+
+  useEffect(() => {
+    // take screenshot immediately on boot
+    void grab();
+
+    // then every 30s
+    timerRef.current = window.setInterval(() => {
+      void grab();
+    }, 30_000);
+
+    return () => {
+      if (timerRef.current) window.clearInterval(timerRef.current);
+    };
+
+  }, []);
 
   // handler functions to open Settings and relaunch
   async function openSettings() {
