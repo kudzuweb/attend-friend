@@ -1,35 +1,50 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 
+
+
 function App() {
-  // state to hold screenshot and busy status
+  // state to hold screenshot, perms status, and timer
   const [img, setImg] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const [showPermModal, setShowPermModal] = useState(false);
   const timerRef = useRef<number | null>(null);
   const capturingRef = useRef(false);
 
   // capture handler
   const grab = useCallback(async () => {
+    // lock to prevent overlapping captures w/o re-render
     if (capturingRef.current) return;
     capturingRef.current = true;
 
-    setBusy(true);
     try {
-      // capture one screen frame
-      const dataUrl = await window.api.captureFrames();
-      setImg(dataUrl);
+      // check perms
+      const permsStatus = await window.api.getScreenPermissionStatus();
+      if (permsStatus !== 'granted') {
+        setShowPermModal(true);
+        return;
+      }
+      // capture one frame
+      const shot: Screenshot = await window.api.captureFrames();
+      setImg(shot.dataUrl);
+
       // send frame back to main process via IPC(once storage is implemented)
-      // await window.api.saveImage(dataUrl);
+      const res = await window.api.saveImage({
+        dataUrl: shot.dataUrl,
+        capturedAt: shot.capturedAt,
+      });
+      if (res.ok) {
+        console.log('saved:', res.file, '(deduped:', res.deduped, ', bytes:', res.bytes, ')');
+      } else {
+        console.error('save failed:', res.error);
+      }
+
     }
     catch (e) {
-      console.error(e);
-      setShowPermModal(true);
+      console.error('capture error:', e);
     }
     finally {
-      setBusy(false);
       capturingRef.current = false;
     }
-  }, [busy])
+  }, [])
 
   useEffect(() => {
     // take screenshot immediately on boot
@@ -62,10 +77,6 @@ function App() {
   return (
     <div style={{ padding: 24 }}>
       <h1>attend screenshot demo</h1>
-
-      <button onClick={grab} disabled={busy}>
-        {busy ? 'capturing...' : 'capture once'}
-      </button>
 
       {img && (
         <div style={{ marginTop: 16 }}>
