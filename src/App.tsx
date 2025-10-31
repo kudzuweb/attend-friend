@@ -74,7 +74,7 @@ function App() {
   }
 
   async function askTheLlm() {
-    const res = await window.api.summarizeRecent(10);
+    const res = await window.api.analyzeRecent(10);
     if (!res.ok) {
       return console.error('ask llm failed', res.error);
     }
