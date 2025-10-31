@@ -1,12 +1,51 @@
 import { app, BrowserWindow, desktopCapturer, ipcMain, shell, systemPreferences } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import fs from 'node:fs/promises';
+import crypto from 'node:crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Example: build an absolute path to your built preload
+// absolute path to built preload
 const preloadPath = path.resolve(__dirname, '../electron/preload.js');
+
+// function to get or create app-scoped dir for storage
+function getBaseDir() {
+    return path.join(app.getPath('userData'), 'attend');
+}
+
+console.log('captures dir:', path.join(app.getPath('userData'), 'attend', 'captures'));
+
+function parseDataUrl(dataUrl: string) {
+    const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+    if (!m) throw new Error('invalid data url');
+    const mime = m[1] as `image/${string}`;
+    const buffer = Buffer.from(m[2], 'base64');
+    let ext: string;
+    if (mime === 'image/jpeg') {
+        ext = '.jpg'
+    } else {
+        throw new Error('invalid image type');
+    };
+    return { buffer, ext, mime };
+}
+
+async function atomicWrite(finalPath: string, buffer: Buffer) {
+    await fs.mkdir(path.dirname(finalPath), { recursive: true });
+    const tmp = finalPath + '.tmp';
+
+    // create temp file; fail if exists, recover by OVERWRITING
+    await fs.writeFile(tmp, buffer, { flag: 'wx' }).catch(async (e) => {
+        if (e?.code === 'EEXIST') {
+            await fs.writeFile(tmp, buffer);
+        } else {
+            throw e;
+        }
+    });
+
+    await fs.rename(tmp, finalPath);
+}
 
 
 let win: BrowserWindow | null = null;
@@ -35,22 +74,6 @@ async function createWindow() {
     }
 }
 
-
-console.log("running main.ts at", new Date())
-// app life cycle events
-const whenReadyPromise = app.whenReady()
-whenReadyPromise.then(createWindow);
-app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-        app.quit();
-    }
-});
-app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-        createWindow();
-    }
-});
-
 // IPC handlers 
 // check permissions status
 ipcMain.handle('screen-permission-status', () => {
@@ -70,15 +93,61 @@ ipcMain.handle('open-screen-recording-settings', async () => {
 
 // get media sources for screenshots
 ipcMain.handle('desktopCapturer-get-sources', (_e, opts) => {
-    let capturer = desktopCapturer.getSources(opts);
-    return capturer
-    console.log('desktopCapturer invoked:', capturer)
+    return desktopCapturer.getSources(opts);
 })
 
-// save screenshots(placeholder currently)
-ipcMain.handle('save-image', async (_e, { dataUrl }: { dataUrl: string }) => {
-    return { ok: true };
-})
+// save screenshots to local storage as SHA
+ipcMain.handle('save-image', async (_evt, payload: { dataUrl: string; capturedAt: string }) => {
+    try {
+        const { dataUrl, capturedAt } = payload;
+        const d = new Date(capturedAt);
+        // decode base64
+        const { buffer, ext, mime } = parseDataUrl(dataUrl);
+
+        // create SHA-256 hash
+        const sha = crypto.createHash('sha256').update(buffer).digest('hex');
+        // insert datetime
+        const iso = d.toISOString();
+
+        // generate file path
+        const baseDir = path.join(getBaseDir(), 'captures')
+        await fs.mkdir(baseDir, { recursive: true })
+        const filePath = path.join(baseDir, `${sha}${ext}`);
+
+        // if already written, return early
+        try {
+            await fs.access(filePath);
+            return {
+                ok: true as const,
+                file: filePath,
+                deduped: true,
+                bytes: buffer.byteLength,
+                capturedAt: iso,
+                sha: sha,
+                mime: mime,
+            };
+        } catch {
+            // not found; proceed with write
+        }
+        // write atomically
+        await atomicWrite(filePath, buffer);
+
+        return {
+            ok: true as const,
+            file: filePath,
+            deduped: false,
+            bytes: buffer.byteLength,
+            capturedAt: iso,
+            sha: sha,
+            mime: mime,
+        };
+    }
+    catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return { ok: false as const, error: msg };
+    }
+
+});
 
 // relaunch app
 ipcMain.handle('relaunch-app', () => {
@@ -86,4 +155,16 @@ ipcMain.handle('relaunch-app', () => {
     app.exit(0);
 });
 
-console.log("attempting to load localhost at", new Date())
+// app life cycle events
+app.whenReady().then(createWindow);
+
+app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+        app.quit();
+    }
+});
+app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+    }
+});
