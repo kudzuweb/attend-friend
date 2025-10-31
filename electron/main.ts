@@ -14,8 +14,14 @@ const preloadPath = path.resolve(__dirname, '../electron/preload.js');
 function getBaseDir() {
     return path.join(app.getPath('userData'), 'attend');
 }
-
-console.log('captures dir:', path.join(app.getPath('userData'), 'attend', 'captures'));
+// create ISO filenames with colons replaced
+function dateTimeStamp(d = new Date()) {
+    return d.toISOString().replace(/:/g, '-');
+}
+// create short SHA for filenames to distinguish images taken close together
+function shortSha(buffer: Buffer, n = 8) {
+    return crypto.createHash('sha256').update(buffer).digest('hex').slice(0, n);
+}
 
 function parseDataUrl(dataUrl: string) {
     const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
@@ -31,7 +37,7 @@ function parseDataUrl(dataUrl: string) {
     return { buffer, ext, mime };
 }
 
-async function atomicWrite(finalPath: string, buffer: Buffer) {
+async function atomicScreenshotSave(finalPath: string, buffer: Buffer) {
     await fs.mkdir(path.dirname(finalPath), { recursive: true });
     const tmp = finalPath + '.tmp';
 
@@ -104,50 +110,33 @@ ipcMain.handle('save-image', async (_evt, payload: { dataUrl: string; capturedAt
         // decode base64
         const { buffer, ext, mime } = parseDataUrl(dataUrl);
 
-        // create SHA-256 hash
-        const sha = crypto.createHash('sha256').update(buffer).digest('hex');
-        // insert datetime
-        const iso = d.toISOString();
-
-        // generate file path
-        const baseDir = path.join(getBaseDir(), 'captures')
-        await fs.mkdir(baseDir, { recursive: true })
+        // create filename and path
+        const timeStamp = dateTimeStamp(d);
+        const sha = shortSha(buffer);
+        const baseDir = path.join(getBaseDir(), 'captures');
+        await fs.mkdir(baseDir, { recursive: true });
         const filePath = path.join(baseDir, `${sha}${ext}`);
 
-        // if already written, return early
-        try {
-            await fs.access(filePath);
-            return {
-                ok: true as const,
-                file: filePath,
-                deduped: true,
-                bytes: buffer.byteLength,
-                capturedAt: iso,
-                sha: sha,
-                mime: mime,
-            };
-        } catch {
-            // not found; proceed with write
-        }
-        // write atomically
-        await atomicWrite(filePath, buffer);
+        await atomicScreenshotSave(filePath, buffer);
 
         return {
             ok: true as const,
             file: filePath,
             deduped: false,
             bytes: buffer.byteLength,
-            capturedAt: iso,
+            capturedAt: d.toISOString(),
             sha: sha,
             mime: mime,
         };
-    }
-    catch (err: unknown) {
+    } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        return { ok: false as const, error: msg };
+        return {
+            ok: false as const,
+            error: msg
+        }
     }
+})
 
-});
 
 // relaunch app
 ipcMain.handle('relaunch-app', () => {
