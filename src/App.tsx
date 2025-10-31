@@ -73,6 +73,14 @@ function App() {
     await window.api.relaunchApp();
   }
 
+  async function askTheLlm() {
+    const res = await window.api.summarizeRecent(10);
+    if (!res.ok) {
+      return console.error('ask llm failed', res.error);
+    }
+    console.log('llm response:', res.text)
+  }
+
   // render react UI, conditionally render img if available
   return (
     <div style={{ padding: 24 }}>
@@ -118,6 +126,8 @@ function App() {
           </div>
         </div>
       )}
+
+      <button onClick={askTheLlm}>Analyze last 5 minutes</button>
 
     </div>
   );
