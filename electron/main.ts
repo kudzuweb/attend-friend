@@ -110,17 +110,49 @@ async function fileToDataUrl(file: string): Promise<string> {
     return `data:${mime};base64,${buffer.toString('base64')}`;
 }
 
-const system_prompt = async function loadPrompt() {
+// ensuring the filepath to the system prompt feeds correctly
+async function resolvePromptPath(input: string): Promise<string> {
+    if (path.isAbsolute(input)) {
+        // absolute wins
+        return input;
+    }
+
+    const filepathCandidates = [
+        // dev: next to source
+        path.join(__dirname, '..', input),
+        path.join(__dirname, '..', '..', input),
+        // dev: project root cwd
+        path.join(process.cwd(), input),
+        // 3) electron app root (dev: project dir; prod: app.asar)
+        path.join(app.getAppPath(), input),
+        // 4) packaged app Resources (only works if you copy the file there at build)
+        path.join(process.resourcesPath, input),
+    ];
+
+    for (const abs of filepathCandidates) {
+        try {
+            await fs.access(abs);
+            return abs;
+        } catch { }
+    }
+    throw new Error(
+        `prompt not found. tried:\n${filepathCandidates.join('\n')}\n`
+    );
+}
+
+
+const get_system_prompt = async function loadPrompt(): Promise<string> {
     const promptPath = process.env.PROMPT_FILE;
     if (!promptPath) throw new Error('PROMPT_FILE not set');
 
-    const abs = path.isAbsolute(promptPath)
-        ? promptPath
-        : path.join(process.resourcesPath, promptPath);
-
+    const abs = await resolvePromptPath(promptPath);
     const content = await fs.readFile(abs, 'utf8');
+    if (!content.trim()) throw new Error(`prompt file is empty: ${abs}`)
+
     return content;
 }
+
+const systemPromptText = await get_system_prompt();
 
 async function sendRecentImagestoLLM(limit = 10) {
     const recent = await getRecentImages(limit);
@@ -132,6 +164,8 @@ async function sendRecentImagestoLLM(limit = 10) {
     };
 
     const dataUrls = await Promise.all(recent.map(fileToDataUrl));
+
+    console.log('type:', typeof systemPromptText, 'text:', systemPromptText);
 
     const baseUrl = (process.env.OPENAI_BASE_URL || 'https://api.openai.com').replace(/\/+$/, '');
     const apiKey = process.env.OPENAI_API_KEY || '';
@@ -149,19 +183,19 @@ async function sendRecentImagestoLLM(limit = 10) {
         },
         body: JSON.stringify({
             model,
-            response_format: { type: 'json_object' },
+            // response_format: { type: 'json_object' },
             temperature: 0,
             messages: [{
-                role: 'system',
-                content: system_prompt,
+                'role': 'system',
+                'content': systemPromptText,
             },
             {
-                role: 'user',
-                content: [
-                    { type: 'text', text: 'these screenshots portray the last five minutes of activity' },
+                'role': 'user',
+                'content': [
+                    { 'type': 'text', 'text': 'these screenshots portray the last five minutes of activity, please return a json object per the system prompt' },
                     ...dataUrls.map(url => ({
-                        type: 'image_url',
-                        image_url: { url, detail: 'low' }
+                        'type': 'image_url',
+                        'image_url': { url, detail: 'low' }
                     })),
                 ],
             },

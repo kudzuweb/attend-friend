@@ -103,7 +103,7 @@ const api = Object.freeze({
     saveImage: (payload) =>
         ipcRenderer.invoke('save-image', payload),
     getRecentImages: (limit) =>
-        ipcRenderer.invoke('llm:get-recent', limit),
+        ipcRenderer.invoke('images:get-recent', limit),
     analyzeRecent: (limit) =>
         ipcRenderer.invoke('llm:send-recent', limit)
 })

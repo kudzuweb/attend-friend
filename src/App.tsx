@@ -78,6 +78,9 @@ function App() {
     if (!res.ok) {
       return console.error('ask llm failed', res.error);
     }
+    if (!res.text) {
+      console.warn('no text field, raw payload:', res.raw)
+    }
     console.log('llm response:', res.text)
   }
 
