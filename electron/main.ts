@@ -80,6 +80,186 @@ async function createWindow() {
     }
 }
 
+<<<<<<< Updated upstream
+=======
+// helper functions
+// absolute path to built preload
+const preloadPath = path.resolve(__dirname, '../electron/preload.js');
+
+// function to get or create app-scoped dir for storage
+function getBaseDir() {
+    return path.join(app.getPath('userData'));
+}
+// create ISO filenames with colons replaced
+function dateTimeStamp(d = new Date()) {
+    return d.toISOString().replace(/:/g, '-');
+}
+// create short SHA for filenames to distinguish images taken close together
+function shortSha(buffer: Buffer, n = 8) {
+    return crypto.createHash('sha256').update(buffer).digest('hex').slice(0, n);
+}
+
+function parseDataUrl(dataUrl: string) {
+    const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+    if (!m) throw new Error('invalid_data_url');
+    const mime = m[1] as `image/${string}`;
+    const buffer = Buffer.from(m[2], 'base64');
+    let ext: string;
+    if (mime === 'image/jpeg') {
+        ext = '.jpg'
+    } else {
+        throw new Error('invalid_image_type');
+    };
+    return { buffer, ext, mime };
+}
+// save images
+async function atomicScreenshotSave(finalPath: string, buffer: Buffer) {
+    await fs.mkdir(path.dirname(finalPath), { recursive: true });
+    const tmp = finalPath + '.tmp';
+
+    // create temp file; fail if exists, recover by OVERWRITING
+    await fs.writeFile(tmp, buffer, { flag: 'wx' }).catch(async (e) => {
+        if (e?.code === 'EEXIST') {
+            await fs.writeFile(tmp, buffer);
+        } else {
+            throw e;
+        }
+    });
+
+    await fs.rename(tmp, finalPath);
+}
+
+// get 10 most recent images(last 5 mins)
+function capturesDir() {
+    return path.join(app.getPath('userData'), 'captures');
+}
+
+async function getRecentImages(limit = 10): Promise<string[]> {
+    // retrieve filepaths
+    const dir = capturesDir();
+    const entries = await fs.readdir(dir).catch(() => []);
+    const files = entries
+        .filter(f => /\.(jpg|jpeg)$/i.test(f))
+        .map(f => path.join(dir, f));
+    if (files.length === 0) return [];
+    // extract timestamps from metadata
+    const getTimeStamps = await Promise.all(
+        files.map(async f => ({ f, t: (await fs.stat(f)).mtime.getTime() }))
+    );
+
+    return getTimeStamps
+        .sort((a, b) => b.t - a.t)
+        .slice(0, limit)
+        .map(x => x.f);
+}
+
+async function fileToDataUrl(file: string): Promise<string> {
+    const buffer = await fs.readFile(file);
+    const mime = 'image/jpeg';
+    return `data:${mime};base64,${buffer.toString('base64')}`;
+}
+
+// ensuring the filepath to the system prompt feeds correctly
+async function resolvePromptPath(input: string): Promise<string> {
+    if (path.isAbsolute(input)) {
+        // absolute wins
+        return input;
+    }
+
+    const filepathCandidates = [
+        // dev: next to source
+        path.join(__dirname, '..', input),
+        path.join(__dirname, '..', '..', input),
+        // dev: project root cwd
+        path.join(process.cwd(), input),
+        // 3) electron app root (dev: project dir; prod: app.asar)
+        path.join(app.getAppPath(), input),
+        // 4) packaged app Resources (only works if you copy the file there at build)
+        path.join(process.resourcesPath, input),
+    ];
+
+    for (const abs of filepathCandidates) {
+        try {
+            await fs.access(abs);
+            return abs;
+        } catch { }
+    }
+    throw new Error(
+        `prompt not found. tried:\n${filepathCandidates.join('\n')}\n`
+    );
+}
+
+
+const get_system_prompt = async function loadPrompt(): Promise<string> {
+    const promptPath = process.env.PROMPT_FILE;
+    if (!promptPath) throw new Error('PROMPT_FILE not set');
+
+    const abs = await resolvePromptPath(promptPath);
+    const content = await fs.readFile(abs, 'utf8');
+    if (!content.trim()) throw new Error(`prompt file is empty: ${abs}`)
+
+    return content;
+}
+
+const systemPromptText = await get_system_prompt();
+
+async function sendRecentImagestoLLM(limit = 10) {
+    const recent = await getRecentImages(limit);
+    if (recent.length === 0) {
+        return {
+            ok: false as const,
+            error: 'no images'
+        }
+    };
+
+    const dataUrls = await Promise.all(recent.map(fileToDataUrl));
+
+    console.log('type:', typeof systemPromptText, 'text:', systemPromptText);
+
+    const baseUrl = (process.env.OPENAI_BASE_URL || 'https://api.openai.com').replace(/\/+$/, '');
+    const apiKey = process.env.OPENAI_API_KEY || '';
+    const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+    if (!apiKey) return {
+        ok: false as const,
+        error: "missing_api_key"
+    };
+
+    const res = await fetch(`${baseUrl}/v1/chat/completions`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            model,
+            // response_format: { type: 'json_object' },
+            temperature: 0,
+            messages: [{
+                'role': 'system',
+                'content': systemPromptText,
+            },
+            {
+                'role': 'user',
+                'content': [
+                    { 'type': 'text', 'text': 'these screenshots portray the last five minutes of activity:' },
+                    ...dataUrls.map(url => ({
+                        'type': 'image_url',
+                        'image_url': { url, detail: 'low' }
+                    })),
+                ],
+            },
+            ],
+        }),
+    });
+    const json = await res.json().catch(() => null);
+    const text = json?.choices?.[0]?.message?.content;
+
+    return { ok: true as const, text: text, raw: json, count: recent.length };
+}
+
+
+
+>>>>>>> Stashed changes
 // IPC handlers 
 // check permissions status
 ipcMain.handle('screen-permission-status', () => {

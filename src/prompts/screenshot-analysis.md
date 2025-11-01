@@ -1,0 +1,1 @@
+'You summarize desktop activity and analyze for user productivity. Please review the user's activity over the past 5 minutes and say whether their activity indicates that they are productive, neutral, or distracted.'

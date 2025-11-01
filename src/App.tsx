@@ -8,6 +8,7 @@ function App() {
   const [showPermModal, setShowPermModal] = useState(false);
   const timerRef = useRef<number | null>(null);
   const capturingRef = useRef(false);
+  const [llmText, setLlmText] = useState<string | null>(null);
 
   // capture handler
   const grab = useCallback(async () => {
@@ -73,14 +74,49 @@ function App() {
     await window.api.relaunchApp();
   }
 
+<<<<<<< Updated upstream
+=======
+
+  async function askTheLlm() {
+    const res = await window.api.analyzeRecent(10);
+
+    if (!res?.ok) {
+      setLlmText(`llm not ok error: ${res?.error ?? 'unknown'}`);
+      return;
+    }
+
+    if (typeof res.text === 'string') {
+      setLlmText(res.text);
+      return;
+    }
+
+    const summary = (res.text as any)?.summary;
+    if (typeof summary === 'string') {
+      setLlmText(summary);
+      return;
+    }
+
+    setLlmText(JSON.stringify(res.raw ?? res.text ?? res, null, 2));
+
+  }
+
+
+>>>>>>> Stashed changes
   // render react UI, conditionally render img if available
   return (
     <div style={{ padding: 24 }}>
       <h1>attend screenshot demo</h1>
 
-      {img && (
+      {/* {img && (
         <div style={{ marginTop: 16 }}>
           <img src={img} alt="screencap" style={{ maxWidth: '100%' }} />
+        </div>
+      )} */}
+
+      {llmText && (
+        <div style={{ marginTop: 20, padding: 12, borderRadius: 8 }}>
+          <h3 style={{ marginTop: 0 }}>analysis</h3>
+          <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{llmText}</pre>
         </div>
       )}
 
