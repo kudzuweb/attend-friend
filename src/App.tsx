@@ -74,8 +74,6 @@ function App() {
     await window.api.relaunchApp();
   }
 
-<<<<<<< Updated upstream
-=======
 
   async function askTheLlm() {
     const res = await window.api.analyzeRecent(10);
@@ -101,7 +99,6 @@ function App() {
   }
 
 
->>>>>>> Stashed changes
   // render react UI, conditionally render img if available
   return (
     <div style={{ padding: 24 }}>
