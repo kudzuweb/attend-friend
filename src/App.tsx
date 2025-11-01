@@ -77,12 +77,12 @@ function App() {
   async function askTheLlm() {
     const res = await window.api.analyzeRecent(10);
     if (!res.ok) {
-      return console.error('ask llm failed', res.error);
+      return setLlmText(`error: ${res.error ?? 'unknown'}`);
     }
     if (!res.text) {
       console.warn('no text field, raw payload:', res.raw)
     }
-    console.log('llm response:', res.text)
+    setLlmText(typeof res.text === 'string' ? res.text : JSON.stringify(res.raw ?? res, null, 2));
   }
 
   // render react UI, conditionally render img if available
