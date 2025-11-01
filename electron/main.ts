@@ -191,7 +191,7 @@ async function sendRecentImagestoLLM(limit = 10) {
             {
                 'role': 'user',
                 'content': [
-                    { 'type': 'text', 'text': 'these screenshots portray the last five minutes of activity, please return a json object per the system prompt' },
+                    { 'type': 'text', 'text': 'these screenshots portray the last five minutes of activity:' },
                     ...dataUrls.map(url => ({
                         'type': 'image_url',
                         'image_url': { url, detail: 'low' }
