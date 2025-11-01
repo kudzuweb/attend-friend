@@ -3,14 +3,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs/promises';
 import crypto from 'node:crypto';
+import 'dotenv/config';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let win: BrowserWindow | null = null;
 
-console.log("dirname:", __dirname)
-// create the active BrowserWindow, styling, security settings
 async function createWindow() {
     console.log("createWindow() called at", new Date())
     win = new BrowserWindow({
@@ -192,7 +191,7 @@ async function sendRecentImagestoLLM(limit = 10) {
             {
                 'role': 'user',
                 'content': [
-                    { 'type': 'text', 'text': 'these screenshots portray the last five minutes of activity:' },
+                    { 'type': 'text', 'text': 'these screenshots portray the last five minutes of activity, please return a json object per the system prompt' },
                     ...dataUrls.map(url => ({
                         'type': 'image_url',
                         'image_url': { url, detail: 'low' }
@@ -204,8 +203,7 @@ async function sendRecentImagestoLLM(limit = 10) {
     });
     const json = await res.json().catch(() => null);
     const text = json?.choices?.[0]?.message?.content;
-
-    return { ok: true as const, text: text, raw: json, count: recent.length };
+    return { ok: true as const, text, raw: json, count: recent.length };
 }
 
 
@@ -227,12 +225,19 @@ ipcMain.handle('open-screen-recording-settings', async () => {
     return { ok: false, reason: 'unsupported_platform' };
 });
 
+// relaunch app
+ipcMain.handle('relaunch-app', () => {
+    app.relaunch({ args: process.argv.slice(1).concat(['--relaunch']) });
+    app.exit(0);
+});
+
+
 // get media sources for screenshots
 ipcMain.handle('desktopCapturer-get-sources', (_e, opts) => {
     return desktopCapturer.getSources(opts);
-})
+});
 
-// save screenshots to local storage as SHA
+// save screenshots to local storage
 ipcMain.handle('save-image', async (_evt, payload: { dataUrl: string; capturedAt: string }) => {
     try {
         const { dataUrl, capturedAt } = payload;
@@ -265,14 +270,26 @@ ipcMain.handle('save-image', async (_evt, payload: { dataUrl: string; capturedAt
             error: msg
         }
     }
-})
-
-
-// relaunch app
-ipcMain.handle('relaunch-app', () => {
-    app.relaunch({ args: process.argv.slice(1).concat(['--relaunch']) });
-    app.exit(0);
 });
+
+// get recent images
+ipcMain.handle('images:get-recent', async (_evt, limit?: number) => {
+    try {
+        return { ok: true as const, files: await getRecentImages(limit ?? 10) };
+    } catch (e: any) {
+        return { ok: false as const, error: e?.message ?? 'get recent image handler failed' };
+    }
+});
+
+// send images to LLM
+ipcMain.handle('llm:send-recent', async (_evt, limit?: number) => {
+    try {
+        return await sendRecentImagestoLLM(limit ?? 10);
+    } catch (e: any) {
+        return { ok: false as const, error: e?.message ?? 'send recent image handler failed' };
+    }
+});
+
 
 // app life cycle events
 app.whenReady().then(createWindow);

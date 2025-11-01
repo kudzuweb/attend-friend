@@ -74,30 +74,16 @@ function App() {
     await window.api.relaunchApp();
   }
 
-
   async function askTheLlm() {
     const res = await window.api.analyzeRecent(10);
-
-    if (!res?.ok) {
-      setLlmText(`llm not ok error: ${res?.error ?? 'unknown'}`);
-      return;
+    if (!res.ok) {
+      return console.error('ask llm failed', res.error);
     }
-
-    if (typeof res.text === 'string') {
-      setLlmText(res.text);
-      return;
+    if (!res.text) {
+      console.warn('no text field, raw payload:', res.raw)
     }
-
-    const summary = (res.text as any)?.summary;
-    if (typeof summary === 'string') {
-      setLlmText(summary);
-      return;
-    }
-
-    setLlmText(JSON.stringify(res.raw ?? res.text ?? res, null, 2));
-
+    console.log('llm response:', res.text)
   }
-
 
   // render react UI, conditionally render img if available
   return (
@@ -151,6 +137,8 @@ function App() {
           </div>
         </div>
       )}
+
+      <button onClick={askTheLlm}>Analyze last 5 minutes</button>
 
     </div>
   );

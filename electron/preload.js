@@ -95,13 +95,17 @@ console.log("running preload!!!")
 // expose safe APIs to the webpage(constrains node access)
 const api = Object.freeze({
     getScreenPermissionStatus,
-    captureFrames: captureFrames,
-    saveImage: (payload) =>
-        ipcRenderer.invoke('save-image', payload),
     openScreenRecordingSettings: () =>
         ipcRenderer.invoke('open-screen-recording-settings'),
     relaunchApp: () =>
         ipcRenderer.invoke('relaunch-app'),
+    captureFrames: captureFrames,
+    saveImage: (payload) =>
+        ipcRenderer.invoke('save-image', payload),
+    getRecentImages: (limit) =>
+        ipcRenderer.invoke('images:get-recent', limit),
+    analyzeRecent: (limit) =>
+        ipcRenderer.invoke('llm:send-recent', limit)
 })
 
 contextBridge.exposeInMainWorld('api', api)
