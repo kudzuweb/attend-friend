@@ -7,53 +7,6 @@ import crypto from 'node:crypto';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// absolute path to built preload
-const preloadPath = path.resolve(__dirname, '../electron/preload.js');
-
-// function to get or create app-scoped dir for storage
-function getBaseDir() {
-    return path.join(app.getPath('userData'), 'attend');
-}
-// create ISO filenames with colons replaced
-function dateTimeStamp(d = new Date()) {
-    return d.toISOString().replace(/:/g, '-');
-}
-// create short SHA for filenames to distinguish images taken close together
-function shortSha(buffer: Buffer, n = 8) {
-    return crypto.createHash('sha256').update(buffer).digest('hex').slice(0, n);
-}
-
-function parseDataUrl(dataUrl: string) {
-    const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
-    if (!m) throw new Error('invalid data url');
-    const mime = m[1] as `image/${string}`;
-    const buffer = Buffer.from(m[2], 'base64');
-    let ext: string;
-    if (mime === 'image/jpeg') {
-        ext = '.jpg'
-    } else {
-        throw new Error('invalid image type');
-    };
-    return { buffer, ext, mime };
-}
-
-async function atomicScreenshotSave(finalPath: string, buffer: Buffer) {
-    await fs.mkdir(path.dirname(finalPath), { recursive: true });
-    const tmp = finalPath + '.tmp';
-
-    // create temp file; fail if exists, recover by OVERWRITING
-    await fs.writeFile(tmp, buffer, { flag: 'wx' }).catch(async (e) => {
-        if (e?.code === 'EEXIST') {
-            await fs.writeFile(tmp, buffer);
-        } else {
-            throw e;
-        }
-    });
-
-    await fs.rename(tmp, finalPath);
-}
-
-
 let win: BrowserWindow | null = null;
 
 console.log("dirname:", __dirname)
@@ -80,8 +33,6 @@ async function createWindow() {
     }
 }
 
-<<<<<<< Updated upstream
-=======
 // helper functions
 // absolute path to built preload
 const preloadPath = path.resolve(__dirname, '../electron/preload.js');
@@ -259,7 +210,6 @@ async function sendRecentImagestoLLM(limit = 10) {
 
 
 
->>>>>>> Stashed changes
 // IPC handlers 
 // check permissions status
 ipcMain.handle('screen-permission-status', () => {
