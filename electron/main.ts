@@ -164,7 +164,7 @@ async function sendRecentImagestoLLM(limit = 10) {
 
     const dataUrls = await Promise.all(recent.map(fileToDataUrl));
 
-    console.log('type:', typeof systemPromptText, 'text:', systemPromptText);
+    // console.log('type:', typeof systemPromptText, 'text:', systemPromptText);
 
     const baseUrl = (process.env.OPENAI_BASE_URL || 'https://api.openai.com').replace(/\/+$/, '');
     const apiKey = process.env.OPENAI_API_KEY || '';
