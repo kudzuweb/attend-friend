@@ -85,23 +85,28 @@ function App() {
     setLlmText(typeof res.text === 'string' ? res.text : JSON.stringify(res.raw ?? res, null, 2));
   }
 
+  // widget css
+  const shell: React.CSSProperties = {
+    padding: 12,
+    borderRadius: 12,
+    WebkitAppRegion: 'drag',
+    backdropFilter: 'blur(12px)',
+    background: 'rgba(240,240,240,0.75)',
+  }
+  // create clickable areas inside the draggable area
+  type DragStyle = React.CSSProperties & { WebkitAppRegion?: 'drag' | 'no-drag' }
+  const noDragBtnStyle: DragStyle = { WebkitAppRegion: 'no-drag' };
+
   // render react UI, conditionally render img if available
   return (
-    <div style={{ padding: 24 }}>
+    <div style={shell}>
       <h1>attend screenshot demo</h1>
-
+      {/* display screenshot for dev/debugging */}
       {/* {img && (
         <div style={{ marginTop: 16 }}>
           <img src={img} alt="screencap" style={{ maxWidth: '100%' }} />
         </div>
       )} */}
-
-      {llmText && (
-        <div style={{ marginTop: 20, padding: 12, borderRadius: 8 }}>
-          <h3 style={{ marginTop: 0 }}>analysis</h3>
-          <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{llmText}</pre>
-        </div>
-      )}
 
       {/* permissions modal */}
       {showPermModal && (
@@ -137,8 +142,15 @@ function App() {
           </div>
         </div>
       )}
-
-      <button onClick={askTheLlm}>Analyze last 5 minutes</button>
+      {/* display llm output text */}
+      {llmText && (
+        <div style={{ marginTop: 20, padding: 12, borderRadius: 8 }}>
+          <h3 style={{ marginTop: 0 }}>analysis</h3>
+          <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{llmText}</pre>
+        </div>
+      )}
+      {/* analyze button for dev/debugging */}
+      <button style={noDragBtnStyle} onClick={askTheLlm}>Analyze last 5 minutes</button>
 
     </div>
   );

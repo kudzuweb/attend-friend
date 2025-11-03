@@ -13,15 +13,27 @@ let win: BrowserWindow | null = null;
 async function createWindow() {
     console.log("createWindow() called at", new Date())
     win = new BrowserWindow({
-        width: 980,
-        height: 700,
-        titleBarStyle: 'hiddenInset',
+        width: 100,
+        height: 100,
+        frame: false,
+        transparent: true,
+        resizable: false,
+        movable: true,
+        hasShadow: false,
+        fullscreenable: false,
+        skipTaskbar: true,
+        vibrancy: 'sidebar',
         webPreferences: {
             preload: preloadPath,
             contextIsolation: true,
             nodeIntegration: false
         }
-    })
+    });
+    // widget config
+    win.setAlwaysOnTop(true, 'floating', 1);
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    // hide from task switchers, etc, so it acts like a utility HUD instead of a window
+    if (process.platform === 'darwin') app.dock?.hide();
 
     if (process.env.NODE_ENV !== 'production') {
         await win.loadURL('http://localhost:5173');
