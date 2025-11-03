@@ -87,6 +87,10 @@ function App() {
   type DragStyle = React.CSSProperties & { WebkitAppRegion?: 'drag' | 'no-drag' }
   const noDragBtnStyle: DragStyle = { WebkitAppRegion: 'no-drag' };
 
+  useEffect(() => {
+    console.log('viewport size:', window.innerWidth, window.innerHeight);
+  }, []);
+
   // render react UI, conditionally render img if available
   return (
     <WidgetShell>
