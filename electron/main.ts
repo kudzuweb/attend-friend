@@ -12,9 +12,12 @@ let win: BrowserWindow | null = null;
 
 async function createWindow() {
     console.log("createWindow() called at", new Date())
+    const size = 100;
     win = new BrowserWindow({
-        width: 100,
-        height: 100,
+        width: size,
+        height: size,
+        // useContentSize: true,
+        show: false,
         frame: false,
         transparent: true,
         resizable: false,
@@ -22,7 +25,7 @@ async function createWindow() {
         hasShadow: false,
         fullscreenable: false,
         skipTaskbar: true,
-        vibrancy: 'sidebar',
+        // vibrancy: 'sidebar',
         webPreferences: {
             preload: preloadPath,
             contextIsolation: true,
@@ -34,7 +37,14 @@ async function createWindow() {
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     // hide from task switchers, etc, so it acts like a utility HUD instead of a window
     if (process.platform === 'darwin') app.dock?.hide();
+    // hard-clamp size so mac can’t “help” by overriding my resizable: false
+    win.setMinimumSize(100, 100);
+    win.setMaximumSize(100, 100);
+    win.setAspectRatio(1);
 
+
+
+    // load renderer
     if (process.env.NODE_ENV !== 'production') {
         await win.loadURL('http://localhost:5173');
         win.webContents.openDevTools({ mode: 'detach' });
@@ -42,6 +52,11 @@ async function createWindow() {
     else {
         await win.loadFile(path.join(__dirname, '../dist/index.html'));
     }
+
+    // win.setContentSize(100, 100);
+    win.setBounds({ width: size, height: size, x: win.getBounds().x, y: win.getBounds().y });
+
+    win.show();
 }
 
 // helper functions
