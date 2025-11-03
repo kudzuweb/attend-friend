@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-
-
+import { WidgetShell } from './widgetshell';
 
 function App() {
   // state to hold screenshot, perms status, and timer
@@ -26,7 +25,6 @@ function App() {
       // capture one frame
       const shot: Screenshot = await window.api.captureFrames();
       setImg(shot.dataUrl);
-
       // send frame back to main process via IPC(once storage is implemented)
       const res = await window.api.saveImage({
         dataUrl: shot.dataUrl,
@@ -50,7 +48,6 @@ function App() {
   useEffect(() => {
     // take screenshot immediately on boot
     void grab();
-
     // then every 30s
     timerRef.current = window.setInterval(() => {
       void grab();
@@ -62,14 +59,14 @@ function App() {
 
   }, []);
 
-  // handler functions to open Settings and relaunch
+  // handler function to open settings
   async function openSettings() {
     const res = await window.api.openScreenRecordingSettings();
     if (!res.ok) {
       console.log("failed to open settings")
     }
   }
-
+  //  handler to relaunch
   async function relaunch() {
     await window.api.relaunchApp();
   }
@@ -85,23 +82,29 @@ function App() {
     setLlmText(typeof res.text === 'string' ? res.text : JSON.stringify(res.raw ?? res, null, 2));
   }
 
+
+  // create clickable areas inside the draggable area
+  type DragStyle = React.CSSProperties & { WebkitAppRegion?: 'drag' | 'no-drag' }
+  const noDragBtnStyle: DragStyle = { WebkitAppRegion: 'no-drag' };
+
   // render react UI, conditionally render img if available
   return (
-    <div style={{ padding: 24 }}>
-      <h1>attend screenshot demo</h1>
+    <WidgetShell>
 
-      {/* {img && (
-        <div style={{ marginTop: 16 }}>
-          <img src={img} alt="screencap" style={{ maxWidth: '100%' }} />
-        </div>
-      )} */}
-
+      {/* display llm output text */}
       {llmText && (
-        <div style={{ marginTop: 20, padding: 12, borderRadius: 8 }}>
+        <div style={{ WebkitAppRegion: 'no-drag' as const }}>
           <h3 style={{ marginTop: 0 }}>analysis</h3>
           <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{llmText}</pre>
         </div>
       )}
+
+      {/* analyze button for dev/debugging */}
+      <button style={noDragBtnStyle} onClick={askTheLlm}>
+        Analyze last 5 minutes
+      </button>
+
+
 
       {/* permissions modal */}
       {showPermModal && (
@@ -137,10 +140,13 @@ function App() {
           </div>
         </div>
       )}
-
-      <button onClick={askTheLlm}>Analyze last 5 minutes</button>
-
-    </div>
+      {/* display screenshot for dev/debugging */}
+      {/* {img && (
+        <div style={{ marginTop: 16 }}>
+          <img src={img} alt="screencap" style={{ maxWidth: '100%' }} />
+        </div>
+      )} */}
+    </WidgetShell>
   );
 
 }
