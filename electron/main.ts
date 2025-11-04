@@ -11,13 +11,16 @@ const __dirname = path.dirname(__filename);
 let win: BrowserWindow | null = null;
 let panelWin: BrowserWindow | null = null;
 
+const CIRCLE_SIZE = 200;
+const PANEL_WIDTH = 440;
+const PANEL_HEIGHT = 380;
+
 // circle widget
 async function createWindow() {
     console.log("createWindow() called at", new Date())
-    const size = 200;
     win = new BrowserWindow({
-        width: size,
-        height: size,
+        width: CIRCLE_SIZE,
+        height: CIRCLE_SIZE,
         // useContentSize: true,
         show: false,
         frame: false,
@@ -39,8 +42,8 @@ async function createWindow() {
     // hide from task switchers, etc, so it acts like a utility HUD instead of a window
     if (process.platform === 'darwin') app.dock?.hide();
     // hard-clamp size so mac can’t “help” by overriding my resizable: false
-    win.setMinimumSize(200, 200);
-    win.setMaximumSize(200, 200);
+    win.setMinimumSize(CIRCLE_SIZE, CIRCLE_SIZE);
+    win.setMaximumSize(CIRCLE_SIZE, CIRCLE_SIZE);
     win.setAspectRatio(1);
 
 
@@ -54,15 +57,17 @@ async function createWindow() {
         await win.loadFile(path.join(__dirname, '../dist/index.html'));
     }
 
-    // win.setContentSize(100, 100);
-    win.setBounds({ width: size, height: size, x: win.getBounds().x, y: win.getBounds().y });
+    win.setBounds({ width: CIRCLE_SIZE, height: CIRCLE_SIZE, x: win.getBounds().x, y: win.getBounds().y });
 
     win.show();
+    // keep panel centered below circle
     win.on('move', () => {
         if (!win || !panelWin || !panelWin.isVisible()) return;
-        const parentBounds = win.getBounds();
-        panelWin.setPosition(parentBounds.x, parentBounds.y + parentBounds.height);
+        const b = win.getBounds();
+        const centeredX = b.x + (b.width - PANEL_WIDTH) / 2;
+        panelWin.setPosition(Math.round(centeredX), b.y + b.height);
     });
+
 
 }
 
@@ -70,13 +75,11 @@ async function createWindow() {
 function showPanel() {
     if (!win) return;
 
-    const parentBounds = win.getBounds();
-
     if (!panelWin) {
         panelWin = new BrowserWindow({
             parent: win!,
-            width: 240,
-            height: 180,
+            width: PANEL_WIDTH,
+            height: PANEL_HEIGHT,
             frame: false,
             transparent: true,
             resizable: false,
@@ -95,13 +98,14 @@ function showPanel() {
             panelWin.loadURL(`file://${path.join(__dirname, '../dist/index.html')}#/panel`);
         }
     }
-
+    const parentBounds = win.getBounds();
+    const centeredX = parentBounds.x + (parentBounds.width - PANEL_WIDTH) / 2;
     // position it right below the circle
     panelWin.setBounds({
-        x: parentBounds.x,
+        x: Math.round(centeredX),
         y: parentBounds.y + parentBounds.height,
-        width: 440,
-        height: 380,
+        width: PANEL_WIDTH,
+        height: PANEL_HEIGHT,
     });
 
     panelWin.show();
@@ -367,7 +371,7 @@ ipcMain.handle('llm:send-recent', async (_evt, limit?: number) => {
     }
 });
 
-// show/hide speech bubble panel
+// show/hide interface panel
 ipcMain.handle('panel:show', () => {
     showPanel();
 });
