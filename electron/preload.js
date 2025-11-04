@@ -105,7 +105,9 @@ const api = Object.freeze({
     getRecentImages: (limit) =>
         ipcRenderer.invoke('images:get-recent', limit),
     analyzeRecent: (limit) =>
-        ipcRenderer.invoke('llm:send-recent', limit)
+        ipcRenderer.invoke('llm:send-recent', limit),
+    showPanel: () => ipcRenderer.invoke('panel:show'),
+    hidePanel: () => ipcRenderer.invoke('panel:hide'),
 })
 
 contextBridge.exposeInMainWorld('api', api)

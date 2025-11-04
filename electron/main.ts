@@ -9,7 +9,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let win: BrowserWindow | null = null;
+let panelWin: BrowserWindow | null = null;
 
+// circle widget
 async function createWindow() {
     console.log("createWindow() called at", new Date())
     const size = 200;
@@ -56,7 +58,56 @@ async function createWindow() {
     win.setBounds({ width: size, height: size, x: win.getBounds().x, y: win.getBounds().y });
 
     win.show();
+    win.on('move', () => {
+        if (!win || !panelWin || !panelWin.isVisible()) return;
+        const parentBounds = win.getBounds();
+        panelWin.setPosition(parentBounds.x, parentBounds.y + parentBounds.height);
+    });
+
 }
+
+// speech bubble panel
+function showPanel() {
+    if (!win) return;
+
+    const parentBounds = win.getBounds();
+
+    if (!panelWin) {
+        panelWin = new BrowserWindow({
+            parent: win!,
+            width: 240,
+            height: 180,
+            frame: false,
+            transparent: true,
+            resizable: false,
+            show: false,
+            alwaysOnTop: true,
+            skipTaskbar: true,
+            webPreferences: {
+                preload: preloadPath, // or a separate preload if you want
+            },
+        });
+
+        // load renderer
+        if (process.env.NODE_ENV !== 'production') {
+            panelWin.loadURL('http://localhost:5173/#/panel');
+        } else {
+            panelWin.loadURL(`file://${path.join(__dirname, '../dist/index.html')}#/panel`);
+        }
+    }
+
+    // position it right below the circle
+    panelWin.setBounds({
+        x: parentBounds.x,
+        y: parentBounds.y + parentBounds.height,
+        width: 440,
+        height: 380,
+    });
+
+    panelWin.show();
+
+}
+
 
 // helper functions
 // absolute path to built preload
@@ -315,6 +366,16 @@ ipcMain.handle('llm:send-recent', async (_evt, limit?: number) => {
         return { ok: false as const, error: e?.message ?? 'send recent image handler failed' };
     }
 });
+
+// show/hide speech bubble panel
+ipcMain.handle('panel:show', () => {
+    showPanel();
+});
+
+ipcMain.handle('panel:hide', () => {
+    if (panelWin) panelWin.hide();
+});
+
 
 
 // app life cycle events
