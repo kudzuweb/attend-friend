@@ -12,7 +12,7 @@ let win: BrowserWindow | null = null;
 
 async function createWindow() {
     console.log("createWindow() called at", new Date())
-    const size = 100;
+    const size = 200;
     win = new BrowserWindow({
         width: size,
         height: size,
@@ -20,7 +20,6 @@ async function createWindow() {
         show: false,
         frame: false,
         transparent: true,
-        resizable: false,
         movable: true,
         hasShadow: false,
         fullscreenable: false,
@@ -38,8 +37,8 @@ async function createWindow() {
     // hide from task switchers, etc, so it acts like a utility HUD instead of a window
     if (process.platform === 'darwin') app.dock?.hide();
     // hard-clamp size so mac can’t “help” by overriding my resizable: false
-    win.setMinimumSize(100, 100);
-    win.setMaximumSize(100, 100);
+    win.setMinimumSize(200, 200);
+    win.setMaximumSize(200, 200);
     win.setAspectRatio(1);
 
 
