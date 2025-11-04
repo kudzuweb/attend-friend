@@ -10,8 +10,6 @@ export default function WidgetApp() {
     // capture timer
     const timerRef = useRef<number | null>(null);
     const capturingRef = useRef(false);
-    // interface panel open/close
-    const [panelOpen, setPanelOpen] = useState(false);
 
     // capture handler
     const grab = useCallback(async () => {
@@ -63,14 +61,6 @@ export default function WidgetApp() {
         };
 
     }, []);
-    // interface panel open/close
-    useEffect(() => {
-        if (panelOpen) {
-            window.api.showPanel();
-        } else {
-            window.api.hidePanel();
-        }
-    }, [panelOpen]);
 
     // handler function to open settings
     async function openSettings() {
@@ -97,7 +87,7 @@ export default function WidgetApp() {
         <>
             <WidgetShell>
                 {/* analyze button for dev/debugging */}
-                <button style={noDragBtnStyle} onClick={() => setPanelOpen(true)}>
+                <button style={noDragBtnStyle} onClick={() => window.api.showPanel()}>
                     open panel
                 </button>
             </WidgetShell>

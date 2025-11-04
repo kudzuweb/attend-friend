@@ -24,7 +24,7 @@ body,
   height: 100%;
   /* aspect-ratio: 1 / 1; */
   border-radius: 50%;
-  background: peru;
+  background: #E28C78;
   overflow: hidden;
   /* backdrop-filter: blur(12px); */
   display: flex;
@@ -35,6 +35,24 @@ body,
   color: whitesmoke;
   -webkit-app-region: drag;
   /* outline: 2px solid blue; */
+}
+
+.panel-root {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.panel {
+  background: #F6F4EE;
+  opacity: 1;
+  color: #322820;
 }
 
 /* a {

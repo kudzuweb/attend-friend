@@ -1,4 +1,4 @@
-import WidgetApp from "./components/widgetapp"
+import WidgetApp from "./components/WidgetApp"
 import PanelApp from "./components/PanelApp"
 
 function App() {
