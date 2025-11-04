@@ -81,8 +81,8 @@ function showPanel() {
             width: PANEL_WIDTH,
             height: PANEL_HEIGHT,
             frame: false,
-            transparent: true,
-            resizable: false,
+            transparent: false,
+            backgroundColor: '#F6F4EE',
             show: false,
             alwaysOnTop: true,
             skipTaskbar: true,
@@ -94,6 +94,7 @@ function showPanel() {
         // load renderer
         if (process.env.NODE_ENV !== 'production') {
             panelWin.loadURL('http://localhost:5173/#/panel');
+            panelWin.webContents.openDevTools({ mode: 'detach' });
         } else {
             panelWin.loadURL(`file://${path.join(__dirname, '../dist/index.html')}#/panel`);
         }
