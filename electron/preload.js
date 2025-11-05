@@ -108,6 +108,24 @@ const api = Object.freeze({
         ipcRenderer.invoke('llm:send-recent', limit),
     showPanel: () => ipcRenderer.invoke('panel:show'),
     hidePanel: () => ipcRenderer.invoke('panel:hide'),
-})
+    openSessionPanel: () => ipcRenderer.invoke('panel:show-session'),
+    startSession: (payload) => ipcRenderer.invoke('session:start', payload),
+    endSession: () => ipcRenderer.invoke('session:end'),
+    onSessionStart: (cb) => {
+        const listener = (_evt, payload) => cb(payload);
+        ipcRenderer.on('session:start', listener);
+        return () => ipcRenderer.removeListener('session:start', listener);
+    },
+    onSessionEnd: (cb) => {
+        const listener = () => cb();
+        ipcRenderer.on('session:end', listener);
+        return () => ipcRenderer.removeListener('session:end', listener);
+    },
+    onPanelMode: (cb) => {
+        const listener = (_evt, payload) => cb(payload);
+        ipcRenderer.on('panel:set-mode', listener);
+        return () => ipcRenderer.removeListener('panel:set-mode', listener);
+    },
+});
 
 contextBridge.exposeInMainWorld('api', api)

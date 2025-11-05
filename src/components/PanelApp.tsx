@@ -1,9 +1,23 @@
 import { useState, useEffect } from "react";
 
 export default function PanelApp() {
+    // set interface panel mode
+    const [mode, setMode] = useState<'analysis' | 'session'>('analysis');
+    // session timer
+    const [minutes, setMinutes] = useState(25);
     // llm output
     const [llmText, setLlmText] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+
+    // switch modes
+    useEffect(() => {
+        const unsub = window.api.onPanelMode?.((payload) => {
+            setMode(payload.mode);
+        });
+        return () => {
+            unsub?.();
+        };
+    }, []);
 
     async function askTheLlm() {
         setLoading(true);
@@ -20,6 +34,32 @@ export default function PanelApp() {
         }
         setLlmText(res.structured.analysis);
         setLoading(false);
+    }
+
+    async function startSession() {
+        await window.api.startSession({ minutes });
+    }
+
+    if (mode === 'session') {
+        return (
+            <div className="panel-root">
+                <h2 className="panel" style={{ fontWeight: 600 }}>new session</h2>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <label style={{ color: '#322820' }}>
+                        length (minutes):
+                        <input
+                            type="number"
+                            min={1}
+                            value={minutes}
+                            onChange={(e) => setMinutes(Number(e.target.value))}
+                            style={{ marginLeft: 8, width: 80 }}
+                        />
+                    </label>
+                    <button className="panel" onClick={startSession}>start</button>
+                    <button className="panel" onClick={() => window.api.hidePanel()}>cancel</button>
+                </div>
+            </div>
+        );
     }
 
     return (
