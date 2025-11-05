@@ -7,16 +7,18 @@ export default function PanelApp() {
 
     async function askTheLlm() {
         setLoading(true);
+
         const res = await window.api.analyzeRecent(10);
+        console.log('panelApp res:', res)
         if (!res.ok) {
             return setLlmText(`error: ${res.error ?? 'unknown'}`);
             setLoading(false);
             return;
         }
-        if (!res.text) {
+        if (!res.structured) {
             console.warn('no text field, raw payload:', res.raw)
         }
-        setLlmText(typeof res.text === 'string' ? res.text : JSON.stringify(res.raw ?? res, null, 2));
+        setLlmText(res.structured.analysis);
         setLoading(false);
     }
 
@@ -26,7 +28,7 @@ export default function PanelApp() {
                 <h2 className={'panel'} style={{ fontWeight: 600 }}>analysis</h2>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', gap: 8 }}>
-                        <button className={'panel'} onClick={askTheLlm}>refresh</button>
+                        <button className={'panel'} onClick={askTheLlm}>analyze last 5 mins</button>
                         <button className={'panel'} onClick={() => window.api.hidePanel()}>close</button>
                     </div>
                 </div>
@@ -43,7 +45,7 @@ export default function PanelApp() {
                         whiteSpace: 'pre-wrap',
                     }}
                 >
-                    {loading && 'analyzing last 5 minutes…'}
+                    {loading && 'ready to analyze'}
                     {!loading && llmText}
                 </div>
 

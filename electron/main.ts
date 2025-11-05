@@ -266,6 +266,30 @@ async function sendRecentImagestoLLM(limit = 10) {
             model,
             // response_format: { type: 'json_object' },
             temperature: 0,
+            response_format: {
+                type: 'json_schema',
+                json_schema: {
+                    name: 'focus_assessment',
+                    schema: {
+                        type: 'object',
+                        properties: {
+                            status: {
+                                type: 'string',
+                                enum: ['on_task', 'drifted'],
+                            },
+                            analysis: {
+                                type: 'string',
+                            },
+                            suggested_prompt: {
+                                type: 'string',
+                            },
+                        },
+                        required: ['status', 'analysis', 'suggested_prompt'],
+                        additionalProperties: false,
+                    },
+                    // strict: true,
+                },
+            },
             messages: [{
                 'role': 'system',
                 'content': systemPromptText,
@@ -283,9 +307,22 @@ async function sendRecentImagestoLLM(limit = 10) {
             ],
         }),
     });
-    const json = await res.json().catch(() => null);
-    const text = json?.choices?.[0]?.message?.content;
-    return { ok: true as const, text, raw: json, count: recent.length };
+    const responseString = await res.json().catch(() => null);
+    console.log('sendrecentimages responseString:', responseString)
+
+    const content = responseString?.choices?.[0]?.message?.content;
+    console.log('sendrecentimages content:', content)
+
+    let structured: any = null;
+
+    try {
+        structured = JSON.parse(content);
+    } catch {
+        throw new Error('could not parse llm response to json')
+    }
+
+    console.log('sendrecentimages structured:', structured)
+    return { ok: true as const, structured: structured, raw: responseString, count: recent.length };
 }
 
 
@@ -366,8 +403,21 @@ ipcMain.handle('images:get-recent', async (_evt, limit?: number) => {
 // send images to LLM
 ipcMain.handle('llm:send-recent', async (_evt, limit?: number) => {
     try {
-        return await sendRecentImagestoLLM(limit ?? 10);
-    } catch (e: any) {
+        const res = await sendRecentImagestoLLM(limit ?? 10);
+
+        if (res?.ok && res?.structured) {
+            const status = res.structured.status;
+            if (status === 'drifted') {
+                showPanel();
+                // push data into panel here?
+                // panelWin?.webContents.send('panel:update-data', res.structured);
+            } else if (status === 'on_task') {
+                panelWin?.hide();
+            }
+        }
+        return res;
+    }
+    catch (e: any) {
         return { ok: false as const, error: e?.message ?? 'send recent image handler failed' };
     }
 });

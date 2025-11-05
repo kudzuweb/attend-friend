@@ -18,9 +18,18 @@ declare global {
                 | { ok: false; error: string }
             >;
             getRecentImages(limit?: number): Promise<{ ok: true; files?: string[] } | { ok: false; error: string }>;
-            analyzeRecent(limit?: number): Promise<{ ok: true; text?: string[]; raw?: unknown; count: number } | { ok: false; error: string }>;
-            showPanel;
-            hidePanel;
+            analyzeRecent(limit?: number): Promise<{
+                ok: true;
+                structured: {
+                    status: 'on_task' | 'drifted';
+                    analysis: string;
+                    suggested_prompt: string;
+                };
+                raw?: unknown;
+                count: number
+            } | { ok: false; error: string }>;
+            showPanel: () => void;
+            hidePanel: () => void;
         };
     }
     // media track constraints for chromium to allow more granular config
