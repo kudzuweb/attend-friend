@@ -11,6 +11,27 @@ const __dirname = path.dirname(__filename);
 let win: BrowserWindow | null = null;
 let panelWin: BrowserWindow | null = null;
 
+// session state
+interface SessionState {
+    isActive: boolean;
+    lengthMs: number;
+    startTime: number;
+    endTime: number;
+}
+
+let sessionState: SessionState = {
+    isActive: false,
+    lengthMs: 0,
+    startTime: 0,
+    endTime: 0,
+};
+
+let sessionTimerRef: NodeJS.Timeout | null = null;
+let sessionScreenshotTimerRef: NodeJS.Timeout | null = null;
+
+// track pending panel options to send after load
+let pendingPanelOptions: { setupSession?: boolean } | null = null;
+
 const CIRCLE_SIZE = 200;
 const PANEL_WIDTH = 440;
 const PANEL_HEIGHT = 380;
@@ -89,6 +110,14 @@ function showPanel() {
             webPreferences: {
                 preload: preloadPath, // or a separate preload if you want
             },
+        });
+
+        // Listen for when the panel is ready, then send pending options
+        panelWin.webContents.once('did-finish-load', () => {
+            if (pendingPanelOptions?.setupSession) {
+                panelWin?.webContents.send('panel:show-session-setup');
+                pendingPanelOptions = null;
+            }
         });
 
         // load renderer
@@ -234,6 +263,55 @@ const get_system_prompt = async function loadPrompt(): Promise<string> {
 }
 
 const systemPromptText = await get_system_prompt();
+
+// session management functions
+function broadcastSessionState() {
+    win?.webContents.send('session:updated', sessionState);
+    panelWin?.webContents.send('session:updated', sessionState);
+}
+
+async function startSessionScreenshots(lengthMs: number) {
+    // First screenshot at 30 seconds in
+    const firstScreenshotTime = 30_000;
+
+    // Schedule first screenshot
+    sessionScreenshotTimerRef = setTimeout(async () => {
+        if (!sessionState.isActive) return;
+        await captureAndSaveScreenshot();
+
+        // Then schedule subsequent screenshots every 30 seconds
+        sessionScreenshotTimerRef = setInterval(async () => {
+            if (!sessionState.isActive) {
+                clearInterval(sessionScreenshotTimerRef!);
+                return;
+            }
+            await captureAndSaveScreenshot();
+        }, 30_000);
+    }, firstScreenshotTime);
+}
+
+async function captureAndSaveScreenshot() {
+    try {
+        // This would need to be called from renderer, but for now we'll handle it differently
+        // We'll signal the widget to capture when session is active
+    } catch (e) {
+        console.error('screenshot capture error:', e);
+    }
+}
+
+function stopSession() {
+    sessionState.isActive = false;
+    sessionState.lengthMs = 0;
+    sessionState.startTime = 0;
+    sessionState.endTime = 0;
+
+    if (sessionTimerRef) clearTimeout(sessionTimerRef);
+    if (sessionScreenshotTimerRef) clearTimeout(sessionScreenshotTimerRef);
+    sessionTimerRef = null;
+    sessionScreenshotTimerRef = null;
+
+    broadcastSessionState();
+}
 
 async function sendRecentImagestoLLM(limit = 10) {
     const recent = await getRecentImages(limit);
@@ -423,12 +501,54 @@ ipcMain.handle('llm:send-recent', async (_evt, limit?: number) => {
 });
 
 // show/hide interface panel
-ipcMain.handle('panel:show', () => {
+ipcMain.handle('panel:show', (_evt, options?: { setupSession?: boolean }) => {
+    // Store options to send after panel loads
+    if (options?.setupSession) {
+        pendingPanelOptions = options;
+    }
     showPanel();
 });
 
 ipcMain.handle('panel:hide', () => {
     if (panelWin) panelWin.hide();
+});
+
+// session handlers
+ipcMain.handle('session:start', (_evt, lengthMs: number) => {
+    if (sessionState.isActive) {
+        return { ok: false as const, error: 'session already active' };
+    }
+
+    const startTime = Date.now();
+    const endTime = startTime + lengthMs;
+
+    sessionState.isActive = true;
+    sessionState.lengthMs = lengthMs;
+    sessionState.startTime = startTime;
+    sessionState.endTime = endTime;
+
+    broadcastSessionState();
+
+    // Start the screenshot loop (first screenshot at +30s)
+    void startSessionScreenshots(lengthMs);
+
+    // Schedule session end
+    sessionTimerRef = setTimeout(() => {
+        stopSession();
+        // Reopen panel to show analysis
+        showPanel();
+    }, lengthMs);
+
+    return { ok: true as const };
+});
+
+ipcMain.handle('session:get-state', () => {
+    return sessionState;
+});
+
+ipcMain.handle('session:stop', () => {
+    stopSession();
+    return { ok: true as const };
 });
 
 

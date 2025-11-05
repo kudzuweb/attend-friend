@@ -4,6 +4,14 @@ declare global {
     // screenshot type
     type Screenshot = { dataUrl: string; capturedAt: string };
 
+    // session state type
+    type SessionState = {
+        isActive: boolean;
+        lengthMs: number;
+        startTime: number;
+        endTime: number;
+    };
+
     // add window.api to Window type so TS doesn't freak out
     interface Window {
         api: {
@@ -28,8 +36,13 @@ declare global {
                 raw?: unknown;
                 count: number
             } | { ok: false; error: string }>;
-            showPanel: () => void;
-            hidePanel: () => void;
+            showPanel: (options?: { setupSession?: boolean }) => Promise<void>;
+            hidePanel: () => Promise<void>;
+            sessionStart: (lengthMs: number) => Promise<{ ok: true } | { ok: false; error: string }>;
+            sessionGetState: () => Promise<SessionState>;
+            sessionStop: () => Promise<{ ok: true } | { ok: false; error: string }>;
+            onSessionUpdated: (callback: (state: SessionState) => void) => void;
+            onSessionSetupRequested: (callback: () => void) => void;
         };
     }
     // media track constraints for chromium to allow more granular config
