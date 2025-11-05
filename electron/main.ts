@@ -71,7 +71,7 @@ async function createWindow() {
 
 }
 
-// speech bubble panel
+// interface panel
 function showPanel() {
     if (!win) return;
 
@@ -233,6 +233,133 @@ const get_system_prompt = async function loadPrompt(): Promise<string> {
     return content;
 }
 
+// IPC handlers 
+// check permissions status
+ipcMain.handle('screen-permission-status', () => {
+    return systemPreferences.getMediaAccessStatus('screen'); // string
+});
+
+// open screen recording settings for user to grant permissions
+ipcMain.handle('open-screen-recording-settings', async () => {
+    if (process.platform === 'darwin') {
+        await shell.openExternal(
+            'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
+        );
+        return { ok: true };
+    }
+    return { ok: false, reason: 'unsupported_platform' };
+});
+
+// relaunch app
+ipcMain.handle('relaunch-app', () => {
+    app.relaunch({ args: process.argv.slice(1).concat(['--relaunch']) });
+    app.exit(0);
+});
+
+
+// get media sources for screenshots
+ipcMain.handle('desktopCapturer-get-sources', (_e, opts) => {
+    return desktopCapturer.getSources(opts);
+});
+
+// save screenshots to local storage
+ipcMain.handle('save-image', async (_evt, payload: { dataUrl: string; capturedAt: string }) => {
+    try {
+        const { dataUrl, capturedAt } = payload;
+        const d = new Date(capturedAt);
+        // decode base64
+        const { buffer, ext, mime } = parseDataUrl(dataUrl);
+
+        // create filename and path
+        const timeStamp = dateTimeStamp(d);
+        const sha = shortSha(buffer);
+        const baseDir = path.join(getBaseDir(), 'captures');
+        await fs.mkdir(baseDir, { recursive: true });
+        const filePath = path.join(baseDir, `${sha}${ext}`);
+
+        await atomicScreenshotSave(filePath, buffer);
+
+        return {
+            ok: true as const,
+            file: filePath,
+            deduped: false,
+            bytes: buffer.byteLength,
+            capturedAt: d.toISOString(),
+            sha: sha,
+            mime: mime,
+        };
+    } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return {
+            ok: false as const,
+            error: msg
+        };
+        console.log('save-image handler failed:', msg)
+    }
+});
+
+// get recent images
+ipcMain.handle('images:get-recent', async (_evt, limit?: number) => {
+    try {
+        return { ok: true as const, files: await getRecentImages(limit ?? 10) };
+    } catch (e: any) {
+        return { ok: false as const, error: e?.message ?? 'get recent image handler failed' };
+    }
+});
+
+// send images to LLM
+ipcMain.handle('llm:send-recent', async (_evt, limit?: number) => {
+    try {
+        const res = await sendRecentImagestoLLM(limit ?? 10);
+
+        if (res?.ok && res?.structured) {
+            const status = res.structured.status;
+            if (status === 'drifted') {
+                showPanel();
+                // push data into panel here?
+                // panelWin?.webContents.send('panel:update-data', res.structured);
+            } else if (status === 'on_task') {
+                panelWin?.hide();
+            }
+        }
+        return res;
+    }
+    catch (e: any) {
+        return { ok: false as const, error: e?.message ?? 'send recent image handler failed' };
+    }
+});
+
+// show/hide interface panel
+ipcMain.handle('panel:show', () => {
+    showPanel();
+});
+
+ipcMain.handle('panel:hide', () => {
+    if (panelWin) panelWin.hide();
+});
+
+// open panel: new session
+ipcMain.handle('panel:show-session', () => {
+    showPanel();
+    panelWin?.webContents.send('panel:set-mode', { mode: 'session' });
+});
+
+// start a timed session (payload from panel)
+ipcMain.handle('session:start', (_evt, payload: { minutes: number }) => {
+    const minutes = Math.max(1, Math.floor(payload.minutes ?? 25));
+    const endsAt = Date.now() + minutes * 60_000;
+
+    win?.webContents.send('session:start', { endsAt });
+
+    panelWin?.hide();
+});
+
+// end timed session
+ipcMain.handle('session:end', () => {
+    win?.webContents.send('session:end');
+});
+
+
 const systemPromptText = await get_system_prompt();
 
 async function sendRecentImagestoLLM(limit = 10) {
@@ -324,113 +451,6 @@ async function sendRecentImagestoLLM(limit = 10) {
     console.log('sendrecentimages structured:', structured)
     return { ok: true as const, structured: structured, raw: responseString, count: recent.length };
 }
-
-
-
-// IPC handlers 
-// check permissions status
-ipcMain.handle('screen-permission-status', () => {
-    return systemPreferences.getMediaAccessStatus('screen'); // string
-});
-
-// open screen recording settings for user to grant permissions
-ipcMain.handle('open-screen-recording-settings', async () => {
-    if (process.platform === 'darwin') {
-        await shell.openExternal(
-            'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
-        );
-        return { ok: true };
-    }
-    return { ok: false, reason: 'unsupported_platform' };
-});
-
-// relaunch app
-ipcMain.handle('relaunch-app', () => {
-    app.relaunch({ args: process.argv.slice(1).concat(['--relaunch']) });
-    app.exit(0);
-});
-
-
-// get media sources for screenshots
-ipcMain.handle('desktopCapturer-get-sources', (_e, opts) => {
-    return desktopCapturer.getSources(opts);
-});
-
-// save screenshots to local storage
-ipcMain.handle('save-image', async (_evt, payload: { dataUrl: string; capturedAt: string }) => {
-    try {
-        const { dataUrl, capturedAt } = payload;
-        const d = new Date(capturedAt);
-        // decode base64
-        const { buffer, ext, mime } = parseDataUrl(dataUrl);
-
-        // create filename and path
-        const timeStamp = dateTimeStamp(d);
-        const sha = shortSha(buffer);
-        const baseDir = path.join(getBaseDir(), 'captures');
-        await fs.mkdir(baseDir, { recursive: true });
-        const filePath = path.join(baseDir, `${sha}${ext}`);
-
-        await atomicScreenshotSave(filePath, buffer);
-
-        return {
-            ok: true as const,
-            file: filePath,
-            deduped: false,
-            bytes: buffer.byteLength,
-            capturedAt: d.toISOString(),
-            sha: sha,
-            mime: mime,
-        };
-    } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        return {
-            ok: false as const,
-            error: msg
-        }
-    }
-});
-
-// get recent images
-ipcMain.handle('images:get-recent', async (_evt, limit?: number) => {
-    try {
-        return { ok: true as const, files: await getRecentImages(limit ?? 10) };
-    } catch (e: any) {
-        return { ok: false as const, error: e?.message ?? 'get recent image handler failed' };
-    }
-});
-
-// send images to LLM
-ipcMain.handle('llm:send-recent', async (_evt, limit?: number) => {
-    try {
-        const res = await sendRecentImagestoLLM(limit ?? 10);
-
-        if (res?.ok && res?.structured) {
-            const status = res.structured.status;
-            if (status === 'drifted') {
-                showPanel();
-                // push data into panel here?
-                // panelWin?.webContents.send('panel:update-data', res.structured);
-            } else if (status === 'on_task') {
-                panelWin?.hide();
-            }
-        }
-        return res;
-    }
-    catch (e: any) {
-        return { ok: false as const, error: e?.message ?? 'send recent image handler failed' };
-    }
-});
-
-// show/hide interface panel
-ipcMain.handle('panel:show', () => {
-    showPanel();
-});
-
-ipcMain.handle('panel:hide', () => {
-    if (panelWin) panelWin.hide();
-});
-
 
 
 // app life cycle events

@@ -30,6 +30,12 @@ declare global {
             } | { ok: false; error: string }>;
             showPanel: () => void;
             hidePanel: () => void;
+            openSessionPanel: () => Promise<void>;
+            startSession: (payload: { minutes: number }) => Promise<void>;
+            endSession: () => Promise<void>;
+            onSessionStart?: (cb: (payload: { endsAt: number }) => void) => () => void;
+            onSessionEnd?: (cb: () => void) => () => void;
+            onPanelMode?: (cb: (payload: { mode: 'analysis' | 'session' }) => void) => () => void;
         };
     }
     // media track constraints for chromium to allow more granular config

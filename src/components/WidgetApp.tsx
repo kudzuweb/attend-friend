@@ -10,6 +10,8 @@ export default function WidgetApp() {
     // capture timer
     const timerRef = useRef<number | null>(null);
     const capturingRef = useRef(false);
+    // session state
+    const [session, setSession] = useState<{ endsAt: number } | null>(null);
 
     // capture handler
     const grab = useCallback(async () => {
@@ -47,20 +49,67 @@ export default function WidgetApp() {
         }
     }, [])
     // useEffects
-    // screenshot capture loop
+
+    // session state listener
     useEffect(() => {
-        // take screenshot immediately on boot
+        const unsubStart = window.api.onSessionStart?.((payload) => {
+            setSession({ endsAt: payload.endsAt });
+        });
+        const unsubEnd = window.api.onSessionEnd?.(() => {
+            setSession(null);
+        });
+
+        return () => {
+            unsubStart?.();
+            unsubEnd?.();
+        };
+    }, []);
+
+    // session-based capture loop
+    useEffect(() => {
+        if (!session) return;
+
+        // clear any old loop
+        if (timerRef.current) {
+            window.clearInterval(timerRef.current);
+            timerRef.current = null;
+        }
+
+        // capture immediately
         void grab();
-        // then every 30s
+
+        // capture on 30s loop
         timerRef.current = window.setInterval(() => {
+            // check if session expired
+            if (Date.now() >= session.endsAt) {
+                void window.api.endSession();
+                return;
+            }
             void grab();
         }, 30_000);
 
         return () => {
-            if (timerRef.current) window.clearInterval(timerRef.current);
+            if (timerRef.current) {
+                window.clearInterval(timerRef.current);
+                timerRef.current = null;
+            }
         };
+    }, [session, grab]);
 
-    }, []);
+    // OLD dumb screenshot capture loop for dev
+    // useEffect(() => {
+    //     // take screenshot immediately on boot
+    //     void grab();
+    //     // then every 30s
+    //     timerRef.current = window.setInterval(() => {
+    //         void grab();
+    //     }, 30_000);
+
+    //     return () => {
+    //         if (timerRef.current) window.clearInterval(timerRef.current);
+    //     };
+
+    // }, []);
 
     // handler function to open settings
     async function openSettings() {
@@ -83,6 +132,10 @@ export default function WidgetApp() {
         <>
             <WidgetShell>
                 {/* analyze button for dev/debugging */}
+                <button style={noDragBtnStyle} onClick={() => window.api.openSessionPanel()}>
+                    new session
+                </button>
+
                 <button style={noDragBtnStyle} onClick={() => window.api.showPanel()}>
                     open panel
                 </button>
