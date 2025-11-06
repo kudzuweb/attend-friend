@@ -106,8 +106,19 @@ const api = Object.freeze({
         ipcRenderer.invoke('images:get-recent', limit),
     analyzeRecent: (limit) =>
         ipcRenderer.invoke('llm:send-recent', limit),
-    showPanel: () => ipcRenderer.invoke('panel:show'),
+    showPanel: (options) => ipcRenderer.invoke('panel:show', options),
     hidePanel: () => ipcRenderer.invoke('panel:hide'),
+    // session APIs
+    sessionStart: (lengthMs) =>
+        ipcRenderer.invoke('session:start', lengthMs),
+    sessionGetState: () =>
+        ipcRenderer.invoke('session:get-state'),
+    sessionStop: () =>
+        ipcRenderer.invoke('session:stop'),
+    onSessionUpdated: (callback) =>
+        ipcRenderer.on('session:updated', (_event, state) => callback(state)),
+    onSessionSetupRequested: (callback) =>
+        ipcRenderer.on('panel:show-session-setup', () => callback()),
 })
 
 contextBridge.exposeInMainWorld('api', api)

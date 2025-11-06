@@ -2,11 +2,13 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { WidgetShell } from './widgetshell';
 
 export default function WidgetApp() {
-    // state to: 
+    // state to:
     // hold screenshot
     const [img, setImg] = useState<string | null>(null);
     // perms status
     const [showPermModal, setShowPermModal] = useState(false);
+    // session state
+    const [sessionState, setSessionState] = useState<SessionState | null>(null);
     // capture timer
     const timerRef = useRef<number | null>(null);
     const capturingRef = useRef(false);
@@ -18,6 +20,7 @@ export default function WidgetApp() {
         capturingRef.current = true;
 
         try {
+            console.log('capturing screenshot...');
             // check perms
             const permsStatus = await window.api.getScreenPermissionStatus();
             if (permsStatus !== 'granted') {
@@ -45,22 +48,45 @@ export default function WidgetApp() {
         finally {
             capturingRef.current = false;
         }
-    }, [])
+    }, [])  // grab doesn't depend on any props/state, safe to use empty dependency array
     // useEffects
-    // screenshot capture loop
+    // listen to session state updates
     useEffect(() => {
-        // take screenshot immediately on boot
-        void grab();
-        // then every 30s
-        timerRef.current = window.setInterval(() => {
+        window.api.onSessionUpdated((state) => {
+            setSessionState(state);
+        });
+
+        // get initial session state
+        window.api.sessionGetState().then(setSessionState).catch(console.error);
+    }, []);
+
+    // screenshot capture loop - only runs during active session
+    useEffect(() => {
+        if (!sessionState?.isActive) {
+            if (timerRef.current) window.clearInterval(timerRef.current);
+            return;
+        }
+
+        // Calculate time until first screenshot (30s into session)
+        const now = Date.now();
+        const elapsed = now - sessionState.startTime;
+        const firstScreenshotDelay = Math.max(0, 30_000 - elapsed);
+
+        // Schedule first screenshot
+        const timeoutId = window.setTimeout(() => {
             void grab();
-        }, 30_000);
+
+            // Then schedule every 30s
+            timerRef.current = window.setInterval(() => {
+                void grab();
+            }, 30_000);
+        }, firstScreenshotDelay);
 
         return () => {
+            window.clearTimeout(timeoutId);
             if (timerRef.current) window.clearInterval(timerRef.current);
         };
-
-    }, []);
+    }, [sessionState?.isActive, sessionState?.startTime]);
 
     // handler function to open settings
     async function openSettings() {
@@ -78,10 +104,38 @@ export default function WidgetApp() {
     type DragStyle = React.CSSProperties & { WebkitAppRegion?: 'drag' | 'no-drag' }
     const noDragBtnStyle: DragStyle = { WebkitAppRegion: 'no-drag' };
 
+    // handler to open panel for session setup
+    async function openSessionPanel() {
+        await window.api.showPanel({ setupSession: true });
+    }
+
+    // handler to end session
+    async function handleEndSession() {
+        const res = await window.api.sessionStop();
+        if (res.ok) {
+            console.log('Session ended');
+        } else {
+            console.error('Failed to end session:', res.error);
+        }
+    }
+
     // render react UI, conditionally render img if available
     return (
         <>
             <WidgetShell>
+                {/* session button - toggles between "new session" and "end session" */}
+                {sessionState?.isActive ? (
+                    <button
+                        style={{...noDragBtnStyle, background: '#c85a54', color: 'white', padding: '6px 12px', borderRadius: 4, border: 'none', cursor: 'pointer', fontSize: 14}}
+                        onClick={handleEndSession}
+                    >
+                        end session
+                    </button>
+                ) : (
+                    <button style={noDragBtnStyle} onClick={openSessionPanel}>
+                        new session
+                    </button>
+                )}
                 {/* analyze button for dev/debugging */}
                 <button style={noDragBtnStyle} onClick={() => window.api.showPanel()}>
                     open panel
