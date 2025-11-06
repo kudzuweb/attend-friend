@@ -32,6 +32,7 @@ declare global {
                     status: 'on_task' | 'drifted';
                     analysis: string;
                     suggested_prompt: string;
+                    summary: string;
                 };
                 raw?: unknown;
                 count: number

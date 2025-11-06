@@ -361,8 +361,11 @@ async function sendRecentImagestoLLM(limit = 10) {
                             suggested_prompt: {
                                 type: 'string',
                             },
+                            summary: {
+                                type: 'string',
+                            },
                         },
-                        required: ['status', 'analysis', 'suggested_prompt'],
+                        required: ['status', 'analysis', 'suggested_prompt', 'summary'],
                         additionalProperties: false,
                     },
                     // strict: true,
